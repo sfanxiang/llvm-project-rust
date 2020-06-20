@@ -579,7 +579,7 @@ public:
   /// effects because the newly allocated memory is completely invisible to
   /// instructions which don't use the returned value.  For cases where this
   /// matters, isSafeToSpeculativelyExecute may be more appropriate.
-  bool mayHaveSideEffects() const { return mayWriteToMemory() || mayThrow(); }
+  bool mayHaveSideEffects() const;
 
   /// Return true if the instruction can be removed if the result is unused.
   ///

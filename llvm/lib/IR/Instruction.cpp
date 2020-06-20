@@ -14,6 +14,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Operator.h"
@@ -598,6 +599,27 @@ bool Instruction::mayThrow() const {
   if (const auto *CatchSwitch = dyn_cast<CatchSwitchInst>(this))
     return CatchSwitch->unwindsToCaller();
   return isa<ResumeInst>(this);
+}
+
+bool Instruction::mayHaveSideEffects() const {
+  if (mayWriteToMemory() || mayThrow())
+    return true;
+
+  if (auto *CB = dyn_cast<CallBase>(this)) {
+    // InlineAsm has its own side effect marker.
+    if (auto *IA = dyn_cast<InlineAsm>(CB->getCalledOperand()))
+      return IA->hasSideEffects();
+
+    // Non-intrinsics and llvm.sideeffect may indicate side effect.
+    // This means normal function calls that do not write or throw are still
+    // not treated as side-effect-free (because they may run forever) until
+    // proven otherwise.
+    auto ID = CB->getIntrinsicID();
+    if (ID == Intrinsic::not_intrinsic || ID == Intrinsic::sideeffect)
+      return true;
+  }
+
+  return false;
 }
 
 bool Instruction::isSafeToRemove() const {
